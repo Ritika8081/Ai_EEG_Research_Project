@@ -96,6 +96,6 @@ just less catastrophically.
 
 The topomap figure (`results/figures/topomap_eegnet.png`) makes this
 visible: EEGNet's 16 learned depthwise filters look like fragmented
-noise rather than clean motor-cortex contrasts (whether one expects
-the left-vs-right or fists-vs-feet topography — see task-label note
-in the data section).
+noise rather than the clean lateral-vs-medial contrast a fists-vs-feet
+imagery task should produce (bilateral hand area C3/C4 vs midline
+foot area Cz).

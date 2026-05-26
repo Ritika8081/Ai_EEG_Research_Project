@@ -95,12 +95,16 @@ I expected whitening to be the dominant half (covariance is the
 high-SNR carrier of subject identity). The ablation shows CCSF and
 whitening lower sil(subject) by similar amounts (0.022 each) but
 **CCSF preserves accuracy better** because it doesn't disturb the
-mu/beta-asymmetry signal — it just changes how the network *combines*
-electrodes.
+spatial covariance structure carrying the class signal — it just
+changes how the network *combines* electrodes.
 
-The motor-imagery class signal lives in spatial covariance asymmetry
-between C3 and C4. Whitening flattens that asymmetry; CCSF re-shapes
-how it's read. Hence the asymmetric cost.
+The motor-imagery class signal for runs 6/10/14 is a
+lateral-vs-medial contrast (bilateral hand area C3/C4 for imagined
+fists, vs midline foot area Cz for imagined feet). That contrast
+lives in the spatial covariance. Whitening flattens covariance
+across the board, taking the class signal with it. CCSF only
+changes how covariance is read, not whether it is preserved. Hence
+the asymmetric cost.
 
 The fix I would build next: drop whitening entirely, keep CCSF, and add
 a **subject-conditional gating** on the spatial filter MLP so the
@@ -111,7 +115,8 @@ subject identity at the classifier.
 
 `results/figures/topomap_eegnet.png` plots the 16 trained depthwise
 filters of EEGNet baseline on a 10-05 head topomap. They look like
-fragmented noise — no clean left/right motor-cortex contrast. This is
+fragmented noise — no clean lateral-vs-medial motor-cortex contrast.
+This is
 exactly what the failure analysis predicts: the filters have learned
 subject-specific covariance structure, not motor-cortex localisation.
 

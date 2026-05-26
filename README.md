@@ -150,14 +150,17 @@ class on the training pool. `scripts/plot_contrasts.py` saves
 `results/figures/part3_contrasts.png` — trial-averaged C3 − C4 and
 (C3 + C4)/2 − Cz with error bands, split by class.
 
-- C3 − C4 shows a **sign flip between classes** (T1 mean negative, T2
-  mean positive) — exactly the left-right lateralization the feature
-  is designed to capture.
-- Effect size is modest at the trial level (Cohen's d ≈ 0.14 on
-  C3 − C4, ≈ 0.05 on the lateral-vs-midline contrast). The contrasts
-  are class-informative but not separable on their own — they are a
-  useful representation for the network to lean on, not a classifier
-  by themselves.
+- The intended discriminator for this task is (C3+C4)/2 − Cz — bilateral
+  hand area (fists) vs midline foot area (feet). Trial-mean shows the
+  expected ordering with a small effect (Cohen's d ≈ 0.05).
+- C3 − C4 surprisingly shows a sign flip between classes too
+  (Cohen's d ≈ 0.14). I did not expect this on a bilateral
+  fists-vs-feet task — possible explanations are subject handedness,
+  attention asymmetry, or systematic timing differences between the
+  two classes. Honest finding, flagged for defence.
+- Either way the contrasts are class-informative but not separable
+  on their own. They are a useful representation for the network to
+  lean on, not a classifier by themselves.
 
 ## Classical baseline — CSP + LDA (`results/csp_baseline.json`)
 
@@ -205,7 +208,7 @@ worst per experiment, never a single number.
 ```
 TRAIN_SUBJECTS = [1, 2, 3, 4, 5, 6, 7, 8]
 TEST_SUBJECTS  = [9, 10]
-RUNS           = [6, 10, 14]     # Motor imagery: left vs right fist (per brief)
+RUNS           = [6, 10, 14]     # PhysioNet Task 4: imagined both-fists vs both-feet
 ```
 
 Filter band 4–38 Hz; epochs 0.5–2.5 s after the cue; 64 EEG channels
@@ -266,11 +269,12 @@ I'm surfacing these so they aren't surprises in a defence.
 - **Whitening cost.** One symmetric eigendecomposition per trial via
   `torch.linalg.eigh` inside `torch.no_grad()`. Stable in practice;
   numerically conditioned by adding εI = 1e-3 · I.
-- **Task-label note.** The brief comments runs 6/10/14 as "left vs
-  right fist", but the PhysioNet documentation lists those runs as
-  imagined both-fists vs both-feet (Task 4, not Task 2). I followed
-  the runs as specified and emailed Shashwat to confirm. The model
-  and analysis are unchanged either way.
+- **Task-label confirmation.** The brief comments runs 6/10/14 as
+  "left vs right fist", but per PhysioNet those runs are Task 4
+  (imagined both-fists vs both-feet). Confirmed with the assignment
+  owner that the intended task is fists vs feet, and the analysis is
+  framed around the lateral-vs-medial contrast (bilateral C3/C4 vs
+  midline Cz) accordingly.
 
 ## Reproducibility
 

@@ -90,19 +90,23 @@ top of EEGNet's existing channels.
 
 ## Why it might not work
 
-First, the runs we are using (6, 10, 14) might not actually be
-left-versus-right motor imagery. The brief comments them as "left vs
-right fist", but the PhysioNet documentation says those runs are
-imagined both-fists versus both-feet. I emailed Shashwat to confirm.
-If the task is fists-vs-feet, the left-right contrasts would be near
-zero on both classes, which is why I added the (C3+C4)/2 minus Cz
-contrast — it captures the lateral-versus-midline distinction that a
-fists-vs-feet task would actually need.
+The task in runs 6, 10, 14 is **imagined both-fists vs both-feet**
+(PhysioNet Task 4, confirmed by the assignment owner). The class
+signal sits in the lateral-vs-midline contrast — bilateral hand area
+(C3/C4) lights up for fists, midline foot area (Cz) lights up for
+feet. The tenth contrast channel, (C3+C4)/2 minus Cz, is the one
+that directly captures that. The other nine left-right contrasts
+(C3-C4 and its neighbours) shouldn't carry strong class signal in
+principle, since fists and feet are both bilateral tasks. I left
+them in anyway: they cost almost nothing, and any residual
+lateralization from handedness or attention asymmetries gets
+captured for free.
 
-Second, adding ten channels gives EEGNet's depthwise filter more
-weights to fit. If the contrasts do not carry useful signal, the
-extra channels just give the model more ways to overfit to subject
-identity, not fewer.
+What could still go wrong: adding ten channels gives EEGNet's
+depthwise filter more weights to fit. If the contrasts do not carry
+useful signal, the extra channels just give the model more ways to
+overfit to subject identity, not fewer. This is the trade-off the
+3-subject result actually exposed (see Results).
 
 ## Implementation
 
@@ -119,12 +123,19 @@ saves `results/figures/part3_contrasts.png` (trial-averaged C3 − C4
 and (C3 + C4)/2 − Cz, with shaded error bands, split by class). Two
 things I wanted to check:
 
-- C3 − C4 has a **sign flip between classes** — T1 trials average
-  negative, T2 trials average positive. That is exactly the
-  lateralization pattern the contrast is built to capture. Good.
-- The effect is real but small (Cohen's d ≈ 0.14 on C3 − C4, ≈ 0.05
-  on the lateral-vs-midline contrast). The contrasts on their own
-  are not classifiers. They are a useful representation for the
+- The intended discriminator (C3 + C4)/2 − Cz has the expected sign
+  pattern — feet trials sit higher than fist trials at the lateral-
+  vs-midline contrast. Effect size on the trial mean is small
+  (Cohen's d ≈ 0.05).
+- The C3 − C4 contrast surprisingly shows a sign flip between
+  classes too (T1 negative, T2 positive, Cohen's d ≈ 0.14). I did
+  not expect this for a bilateral fists-vs-feet task — possible
+  explanations are subject handedness, attention asymmetry, or a
+  systematic timing difference between the two classes that produces
+  a small but consistent left-right imbalance. Useful to note for
+  defence but not part of the headline claim.
+- Either way, the contrasts on their own are not classifiers — they
+  are a useful representation for the
   network to lean on.
 
 ## Results

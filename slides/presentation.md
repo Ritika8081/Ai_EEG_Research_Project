@@ -10,15 +10,10 @@ person, and what does the failure tell us about how to fix it?
 
 | Train | Test | Task | Channels | Sampling | Trials/subject |
 | ----- | ---- | ---- | -------- | -------- | -------------- |
-| Subj 1–8 | Subj 9–10 | Motor imagery (per brief: L/R fist) | 64 | 160 Hz | ~45 |
+| Subj 1–8 | Subj 9–10 | Imagined fists vs feet (PhysioNet Task 4) | 64 | 160 Hz | ~45 |
 
 Three seeds (1337, 2024, 7). Always report **best AND worst** —
 no cherry-picking. Source of truth: `results/metrics.json`.
-
-(Task-label note: the brief comments runs 6/10/14 as "left vs right
-fist", but PhysioNet documentation lists those runs as imagined
-both-fists vs both-feet. Followed the runs as specified; emailed
-Shashwat to confirm. Model and analysis are unchanged either way.)
 
 ---
 
@@ -121,10 +116,12 @@ What's working and what isn't:
 
 ## Slide 7 — Why TopoNet wins on 3 subjects and loses on 8
 
-The motor-imagery class signal lives in the **covariance asymmetry
-between C3 and C4**. Per-trial whitening removes that asymmetry
-along with the person-specific covariance — they live in the same
-algebraic object.
+The motor-imagery class signal for runs 6/10/14 lives in the
+**lateral-vs-medial covariance contrast** — bilateral hand area
+(C3/C4) for imagined fists vs midline foot area (Cz) for imagined
+feet. Per-trial whitening flattens covariance across the board, so
+it removes the class signal along with the person-specific
+component — they live in the same algebraic object.
 
 - **Full pool**: EEGNet has enough data to find robust filters
   without the prior. Whitening becomes *cost without benefit*.

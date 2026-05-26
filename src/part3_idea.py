@@ -112,9 +112,8 @@ HEMI_PAIRS = [
     ("CP1", "CP2"),
     ("CP5", "CP6"),
 ]
-# Lateral hand area vs midline foot area (covers the fists-vs-feet
-# interpretation of the task in case the brief's "left vs right fist"
-# label is incorrect).
+# Lateral hand area vs midline foot area — the canonical contrast
+# for the fists-vs-feet task in runs 6/10/14.
 LATERAL_MIDLINE = (("C3", "C4"), "Cz")
 
 

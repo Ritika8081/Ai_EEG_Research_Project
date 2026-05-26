@@ -1,5 +1,5 @@
 """
-PhysioNet EEGBCI loader for motor-imagery (runs 6, 10, 14: left vs right fist).
+PhysioNet EEGBCI loader for motor-imagery (runs 6, 10, 14: imagined both-fists vs both-feet).
 
 Design notes
 ------------
@@ -34,7 +34,8 @@ RUNS = [6, 10, 14]
 SFREQ = 160.0
 TMIN, TMAX = 0.5, 2.5  # seconds, relative to cue onset
 L_FREQ, H_FREQ = 4.0, 38.0
-# T1 = left fist, T2 = right fist for runs 6, 10, 14
+# PhysioNet runs 6, 10, 14 are Task 4 (imagined motor imagery):
+#   T1 = both fists, T2 = both feet
 EVENT_ID = {"T1": 0, "T2": 1}
 
 
@@ -67,7 +68,7 @@ def _epoch(raw) -> Tuple[np.ndarray, np.ndarray, List[str], np.ndarray]:
     epochs = mne.Epochs(
         raw,
         events,
-        event_id={"left": 0, "right": 1},
+        event_id={"fists": 0, "feet": 1},
         tmin=TMIN,
         tmax=TMAX,
         baseline=None,

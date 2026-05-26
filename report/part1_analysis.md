@@ -95,5 +95,7 @@ half of EEGNet is doing the same kind of subject-specific learning,
 just less catastrophically.
 
 The topomap figure (`results/figures/topomap_eegnet.png`) makes this
-visible: EEGNet's 16 learned depthwise filters look like noise rather
-than clean left/right motor-cortex contrasts.
+visible: EEGNet's 16 learned depthwise filters look like fragmented
+noise rather than clean motor-cortex contrasts (whether one expects
+the left-vs-right or fists-vs-feet topography — see task-label note
+in the data section).

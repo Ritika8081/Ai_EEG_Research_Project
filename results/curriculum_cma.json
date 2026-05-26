@@ -1,0 +1,23 @@
+{
+  "constant_p_3subj": {
+    "best": 0.6,
+    "worst": 0.4888888888888889,
+    "mean": 0.562962962962963,
+    "silhouette_class": -0.0009718564106151462,
+    "silhouette_subject": 0.06305374205112457
+  },
+  "curriculum_p_3subj": {
+    "best": 0.6,
+    "worst": 0.5,
+    "mean": 0.562962962962963,
+    "silhouette_class": -0.0011476937215775251,
+    "silhouette_subject": 0.06761545687913895
+  },
+  "curriculum_p_8subj": {
+    "best": 0.6,
+    "worst": 0.5333333333333333,
+    "mean": 0.5703703703703703,
+    "silhouette_class": 0.013317329809069633,
+    "silhouette_subject": 0.05602484196424484
+  }
+}

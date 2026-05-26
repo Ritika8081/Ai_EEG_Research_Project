@@ -1,0 +1,7 @@
+RESULTS — best/worst over seeds (test accuracy, cross-subject)
+  baseline_full_8subj               best=0.644  worst=0.511  sil_class=0.010  sil_subj=0.084
+  baseline_reduced_3subj            best=0.656  worst=0.533  sil_class=-0.002  sil_subj=0.062
+  part2_full_8subj                  best=0.489  worst=0.456  sil_class=0.005  sil_subj=0.014
+  part2_reduced_3subj               best=0.622  worst=0.600  sil_class=0.006  sil_subj=0.027
+  part3_full_8subj                  best=0.622  worst=0.500  sil_class=0.010  sil_subj=0.121
+  part3_reduced_3subj               best=0.633  worst=0.522  sil_class=-0.003  sil_subj=0.090

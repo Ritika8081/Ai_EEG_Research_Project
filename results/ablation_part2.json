@@ -1,0 +1,38 @@
+{
+  "whiten_only_full": {
+    "label": "whiten_only_full",
+    "best": 0.6,
+    "worst": 0.4888888888888889,
+    "mean": 0.5481481481481482,
+    "std": 0.04566232594791834,
+    "silhouette_class": 0.006123075727373362,
+    "silhouette_subject": 0.021586230024695396
+  },
+  "ccsf_only_full": {
+    "label": "ccsf_only_full",
+    "best": 0.5222222222222223,
+    "worst": 0.4222222222222222,
+    "mean": 0.4740740740740741,
+    "std": 0.040908744508100975,
+    "silhouette_class": 0.004295170307159424,
+    "silhouette_subject": 0.022071855142712593
+  },
+  "whiten_only_reduced": {
+    "label": "whiten_only_reduced",
+    "best": 0.6,
+    "worst": 0.4888888888888889,
+    "mean": 0.5481481481481482,
+    "std": 0.04566232594791834,
+    "silhouette_class": -0.0020863288082182407,
+    "silhouette_subject": 0.01673019304871559
+  },
+  "ccsf_only_reduced": {
+    "label": "ccsf_only_reduced",
+    "best": 0.6111111111111112,
+    "worst": 0.5666666666666667,
+    "mean": 0.5814814814814815,
+    "std": 0.020951312035156995,
+    "silhouette_class": 0.005396929103881121,
+    "silhouette_subject": 0.020157190039753914
+  }
+}

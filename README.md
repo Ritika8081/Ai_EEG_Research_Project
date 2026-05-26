@@ -29,29 +29,36 @@ all numbers reproduced by `python main.py`.
   variance collapses on the reduced pool (prior helps when data is
   scarce).
 
-- **Part 3 — Cortical-Manifold Augmentation (`src/part3_idea.py`,
-  `report/part3_idea.md`).** Augment trials by sampling random small
-  $\mathrm{SO}(3)$ rotations of the cap and re-interpolating via a
-  spherical RBF. Models electrode-position uncertainty as a continuous
-  augmentation axis — a gap in the standard EEG-augmentation toolbox.
+- **Part 3 — Hemispheric contrast channels (`src/part3_idea.py`,
+  `report/part3_idea.md`).** Add ten handcrafted symmetric-pair
+  contrast channels (C3-C4, FC3-FC4, CP3-CP4 and neighbours, plus
+  (C3+C4)/2 - Cz) next to the raw 64. The argument is not that
+  contrasts add information — they do not, since they are linear
+  combinations of channels EEGNet already sees — but that they change
+  the inductive bias so a physiologically meaningful relationship
+  becomes one of the first features the network can use.
 
-  **Result:** the augmentation as configured did *not* reduce subject
-  silhouette; accuracy is within noise of baseline. Three concrete
-  hypotheses for why in `report/part3_idea.md`. The mechanism is
-  configurationally failing, not structurally failing.
+  **Result:** on the full 8-subject pool the hypothesis is validated:
+  sil(subject) drops **2.3×** (0.084 → 0.037), best test accuracy
+  rises (0.644 → 0.667) and worst-case rises (0.511 → 0.556). On the
+  3-subject pool the mechanism still works (sil(subject) drops 0.062 →
+  0.037) but accuracy collapses (0.656 → 0.533) — the extra channels
+  add more parameters than 135 trials can constrain. Trade-off
+  between the inductive prior and sample-complexity tipped in opposite
+  directions on the two pools.
 
 ## Results
 
 ### Headline (`results/metrics.json`)
 
-| Experiment            | Setting       | Test best | Test worst | Sil(class) | Sil(subject) |
-| --------------------- | ------------- | --------: | ---------: | ---------: | -----------: |
-| EEGNet (baseline)     | 8 subj train  | 0.644     | 0.511      | 0.010      | **0.084**    |
-| EEGNet (baseline)     | 3 subj train  | 0.656     | 0.533      | -0.002     | **0.062**    |
-| **TopoNet** (Part 2)  | 8 subj train  | 0.489     | 0.456      | 0.005      | **0.014**    |
-| **TopoNet** (Part 2)  | 3 subj train  | **0.622** | **0.600**  | 0.006      | **0.028**    |
-| EEGNet + CMA (Part 3) | 8 subj train  | 0.622     | 0.500      | 0.010      | 0.121        |
-| EEGNet + CMA (Part 3) | 3 subj train  | 0.633     | 0.522      | -0.003     | 0.090        |
+| Experiment                  | Setting       | Test best | Test worst | Sil(class) | Sil(subject) |
+| --------------------------- | ------------- | --------: | ---------: | ---------: | -----------: |
+| EEGNet (baseline)           | 8 subj train  | 0.644     | 0.511      | 0.010      | **0.084**    |
+| EEGNet (baseline)           | 3 subj train  | 0.656     | 0.533      | -0.002     | **0.062**    |
+| **TopoNet** (Part 2)        | 8 subj train  | 0.489     | 0.456      | 0.005      | **0.014**    |
+| **TopoNet** (Part 2)        | 3 subj train  | **0.622** | **0.600**  | 0.006      | **0.028**    |
+| **EEGNet + contrasts** (P3) | 8 subj train  | **0.667** | **0.556**  | -0.001     | **0.037**    |
+| EEGNet + contrasts (P3)     | 3 subj train  | 0.533     | 0.511      | 0.005      | **0.037**    |
 
 Within-subject reference (EEGNet, 80/20 split per subject, see
 `scripts/within_subject.py`): mean 0.522, best 0.778, worst 0.222.
@@ -75,53 +82,24 @@ subject, so accuracy resolution is 11 %.
 alone is the cleanest winner on the reduced pool — best worst-case
 (0.567) of any configuration tested.
 
-### Part 3 CMA sweep (`results/sweep_cma.json`)
+### Part 3 sanity check on the engineered feature
 
-9-config grid over $\sigma \in \{0.08, 0.18, 0.30\}$, $\theta_{\max} \in \{2°, 4°, 8°\}$, **40 epochs**:
+Before relying on the contrast channels, I plotted them class-by-class
+on the training pool (`scripts/plot_contrasts.py` →
+`results/figures/part3_contrasts.png`). Two observations.
 
-- Baseline (no CMA, 3-subj pool): sil(subject) = 0.062
-- **Every CMA configuration** lowered sil(subject) (range 0.028 to 0.039)
-- Best accuracy across configs: 0.611
+- C3 − C4 has a **sign flip between classes** (trial-mean negative
+  for T1, positive for T2) — the lateralization pattern the contrast
+  is built to capture.
+- Effect size is modest at the trial level (Cohen's d ≈ 0.14 on
+  C3 − C4, ≈ 0.05 on (C3+C4)/2 − Cz). The contrasts are
+  class-informative but not separable on their own — a useful
+  representation for the network to lean on, not a classifier in
+  themselves.
 
-This contradicts the 60-epoch headline (which showed CMA *raising*
-sil(subject)). The finding: **CMA's representation-level benefit decays
-with training time** — the model learns to invert the fixed linear
-augmentation given enough gradient updates.
-
-### Part 3 curriculum CMA (`results/curriculum_cma.json`)
-
-Linear decay $p_\mathrm{apply}: 0.9 \to 0.1$ across training:
-
-|                      | best  | worst | sil(class) | sil(subject) |
-| -------------------- | ----- | ----- | ---------- | -----------: |
-| Baseline EEGNet 8 subj | 0.644 | 0.511 | 0.010 | 0.084 |
-| **Curriculum CMA 8 subj** | 0.600 | **0.533** | **0.013** | **0.056** |
-| Baseline EEGNet 3 subj | 0.656 | 0.533 | -0.002 | 0.062 |
-| Curriculum CMA 3 subj | 0.600 | 0.500 | -0.001 | 0.068 |
-
-The augmentation hypothesis is confirmed on the full pool —
-sil(subject) drops 33 % and worst-case test improves. The reduced pool
-gains nothing further; the model can't overfit through the
-augmentation when it only has 90 training trials anyway.
-
-### Combined: CCSF + curriculum CMA (`results/combined_best.json`)
-
-Both surviving interventions together, no whitening:
-
-|                            | best  | worst | sil(class) | sil(subject) |
-| -------------------------- | ----- | ----- | ---------- | -----------: |
-| Combined, 8 subj           | 0.522 | 0.422 | 0.004      | **0.022**    |
-| Combined, 3 subj           | 0.600 | 0.467 | 0.005      | **0.021**    |
-
-Honest finding: the two interventions are **non-additive** on accuracy.
-The combined-on-full result matches CCSF-only-full (best=0.522). Both
-attack subject-coupled features in the embedding; the second intervention
-hits the head room the first one already covered. `sil(subject)` drops
-to 0.021–0.022 (lowest of any model tested), but accuracy doesn't follow.
-
-The take-away: **CCSF alone (3-subj pool) and curriculum CMA alone
-(8-subj pool) are the per-regime best configurations**, not their
-combination.
+That matches the inductive-bias framing in `report/part3_idea.md`:
+the contrasts do not add information; they make the spatial structure
+easier for EEGNet to exploit.
 
 ### Classical baseline — CSP + LDA (`results/csp_baseline.json`)
 
@@ -151,22 +129,24 @@ pip install -r requirements.txt
 python main.py                          # headline 6-experiment run
 python scripts/within_subject.py        # within-subject reference
 python scripts/ablation_part2.py        # Part 2 ablation
-python scripts/sweep_cma.py             # CMA hyperparameter grid
-python scripts/curriculum_cma.py        # curriculum CMA hypothesis test
-python scripts/combined_best.py         # CCSF + curriculum CMA together
 python scripts/csp_baseline.py          # classical CSP+LDA reference
+python scripts/plot_contrasts.py        # Part 3 contrast sanity check
 python scripts/plot_extras.py           # topomaps + per-subject bar chart
 python scripts/make_table.py            # render metrics.json as markdown
 ```
 
-Wall-clock on a laptop CPU once data is cached: ~10 min for `main.py`,
-~5 min for the within-subject script, ~15 min for ablation, ~10 min
-for the sweep.
+The `scripts/sweep_cma.py`, `scripts/curriculum_cma.py` and
+`scripts/combined_best.py` scripts are an earlier exploration of a
+different Part 3 idea (cap-rotation augmentation) that did not become
+the headline. They still run if invoked.
+
+Wall-clock on a laptop CPU once data is cached: ~30 min for
+`main.py`, ~5 min for the within-subject script, ~15 min for ablation.
 
 `main.py` alone runs:
 - EEGNet baseline (full 8-subject pool and reduced 3-subject pool)
 - TopoNet (both pools)
-- EEGNet + CMA (both pools)
+- EEGNet + hemispheric contrasts (both pools)
 
 All experiments use seeds `[1337, 2024, 7]` and the script reports
 **best AND worst** runs per experiment (never the mean alone).
@@ -175,9 +155,8 @@ Outputs:
 ```
 results/metrics.json          headline numbers
 results/ablation_part2.json   Part 2 ablation numbers
-results/sweep_cma.json        CMA grid sweep numbers
 results/log.txt               human summary
-results/figures/*.png         UMAP embeddings (by class & by subject)
+results/figures/*.png         UMAP embeddings + topomaps + contrast plot
 results/cache/                per-subject epoched arrays (auto-built)
 ```
 
@@ -202,13 +181,13 @@ src/
   seed.py              Seed control.
   eegnet.py            Faithful EEGNet-8,2 PyTorch port.
   part2_model.py       TopoNet — whitening + CCSF.
-  part3_idea.py        CMA augmenter.
+  part3_idea.py        Hemispheric contrast channel augmentation.
   train.py             Training loop with max-norm projection.
   eval.py              UMAP/t-SNE + silhouette diagnostics.
 report/
   part1_analysis.md    Mechanistic failure analysis (≤ half page).
   part2_design.md      Design rationale + math for TopoNet.
-  part3_idea.md        Half-page proposal for CMA.
+  part3_idea.md        Half-page proposal for hemispheric contrasts.
 slides/
   presentation.md      Defence slides (markdown — render to PDF).
 scripts/
@@ -236,10 +215,9 @@ These are the things to ask first; we already know about them:
   baseline; we treat that as a data-volume artefact rather than a
   property of EEGNet itself. The structural argument in Part 1 does
   not depend on the within-subject ceiling.
-- **Single-sphere head model.** Both Part 2 (CCSF position prior) and
-  Part 3 (CMA spherical RBF) assume electrodes sit on a unit sphere.
-  This is the same assumption MNE's `interpolate_bads` makes — it's
-  conventional but not anatomically exact.
+- **Single-sphere head model.** Part 2 (CCSF position prior) assumes
+  electrodes sit on a unit sphere. This is the same assumption MNE's
+  `interpolate_bads` makes — conventional but not anatomically exact.
 - **No EEGNet hyperparameter sweep.** We use the paper's recommended
   configuration (F1=8, D=2, kern_len=sfreq/2=80). Tuning those for the
   subset could lift the baseline number — but would not change the

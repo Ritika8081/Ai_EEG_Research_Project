@@ -30,7 +30,7 @@ from src.data import TEST_SUBJECTS, TRAIN_SUBJECTS, EpochSet, load_data, per_tri
 from src.eegnet import EEGNet
 from src.eval import cluster_diagnostics, plot_embeddings
 from src.part2_model import TopoNet
-from src.part3_idea import CMAAugmenter, build_cma_bank
+from src.part3_idea import augment_with_contrasts
 from src.seed import seed_all
 from src.train import TrainCfg, evaluate, extract_features, make_loader, train_model
 
@@ -117,31 +117,39 @@ def run_part2(train_set: EpochSet, test_set: EpochSet, label: str, epochs: int =
 
 
 def run_part3(train_set: EpochSet, test_set: EpochSet, label: str, epochs: int = 60) -> Dict[str, float]:
-    print(f"\n[part3 CMA] {label}  train={len(train_set.y)}  test={len(test_set.y)}")
+    """Part 3: append ten pairwise contrasts between symmetric left-right
+    motor-cortex electrodes (plus one lateral-vs-midline contrast) to
+    the raw 64-channel input. EEGNet then sees 74 channels and can use
+    either representation, with the contrasts giving it a ready-made
+    lateralization feature it would otherwise have to learn."""
+    print(f"\n[part3 hemi-contrasts] {label}  train={len(train_set.y)}  test={len(test_set.y)}")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    bank = build_cma_bank(train_set.pos, n_aug=24, theta_max_deg=4.0, sigma=0.18)
-    augmenter = CMAAugmenter(bank, p_apply=0.8).to(device)
+    Xtr_full = augment_with_contrasts(train_set.X, train_set.ch_names)
+    Xte_full = augment_with_contrasts(test_set.X, test_set.ch_names)
+    print(f"  channels augmented 64 -> {Xtr_full.shape[1]} (64 raw + 10 contrasts)")
+    train_mod = EpochSet(Xtr_full, train_set.y, train_set.subjects, train_set.ch_names, train_set.pos)
+    test_mod = EpochSet(Xte_full, test_set.y, test_set.subjects, test_set.ch_names, test_set.pos)
     accs_test, accs_val = [], []
     last_model, last_loader = None, None
     for seed in SEEDS[:N_SEEDS]:
         seed_all(seed)
-        train, val = _split_train(train_set, val_subjects=[max(np.unique(train_set.subjects))])
+        train, val = _split_train(train_mod, val_subjects=[max(np.unique(train_mod.subjects))])
         Xtr = per_trial_zscore(train.X)
         Xva = per_trial_zscore(val.X)
-        Xte = per_trial_zscore(test_set.X)
-        cfg = TrainCfg(epochs=epochs, augment_fn=augmenter)
+        Xte = per_trial_zscore(test_mod.X)
+        cfg = TrainCfg(epochs=epochs)
         model = EEGNet(n_channels=Xtr.shape[1], n_times=Xtr.shape[2])
         tl = make_loader(Xtr, train.y, train.subjects, batch=cfg.batch, shuffle=True)
         vl = make_loader(Xva, val.y, val.subjects, batch=cfg.batch, shuffle=False)
-        te = make_loader(Xte, test_set.y, test_set.subjects, batch=cfg.batch, shuffle=False)
+        te = make_loader(Xte, test_mod.y, test_mod.subjects, batch=cfg.batch, shuffle=False)
         train_model(model, tl, vl, cfg)
         accs_val.append(evaluate(model, vl, cfg.device))
         accs_test.append(evaluate(model, te, cfg.device))
         last_model, last_loader = model, te
         print(f"  seed={seed}  val={accs_val[-1]:.3f}  test={accs_test[-1]:.3f}")
-    feats, ys, subs = extract_features(last_model, last_loader, "cuda" if torch.cuda.is_available() else "cpu")
+    feats, ys, subs = extract_features(last_model, last_loader, device)
     diag = cluster_diagnostics(feats, ys, subs)
-    plot_embeddings(feats, ys, subs, title=f"EEGNet+CMA — {label}", out_path=os.path.join(FIG, f"part3_{label}.png"))
+    plot_embeddings(feats, ys, subs, title=f"EEGNet on contrasts — {label}", out_path=os.path.join(FIG, f"part3_{label}.png"))
     return {"label": label, **_runs_summary(accs_test), "val": _runs_summary(accs_val), **diag}
 
 

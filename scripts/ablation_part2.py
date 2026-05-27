@@ -12,6 +12,7 @@ We run only the two missing rows here, dump them into
 results/ablation_part2.json. The other two rows are pulled from the
 existing metrics.json so the slide table is one coherent comparison.
 """
+import argparse
 import json
 import os
 import sys
@@ -92,7 +93,11 @@ def run(model_factory, train_set, test_set, label: str, epochs: int = 60):
 
 
 def main():
-    print("Loading data...")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--epochs", type=int, default=60)
+    args = parser.parse_args()
+
+    print(f"Loading data... (epochs={args.epochs})")
     train_set = load_data(TRAIN_SUBJECTS)
     test_set = load_data(TEST_SUBJECTS)
 
@@ -113,12 +118,12 @@ def main():
         return TopoNet(pos=pos, n_channels=c, n_times=t, use_whitening=False)
 
     print("\n--- Ablation: full pool (8 subj) ---")
-    out["whiten_only_full"] = run(whiten_only, train_set, test_set, "whiten_only_full")
-    out["ccsf_only_full"]   = run(ccsf_only,   train_set, test_set, "ccsf_only_full")
+    out["whiten_only_full"] = run(whiten_only, train_set, test_set, "whiten_only_full", epochs=args.epochs)
+    out["ccsf_only_full"]   = run(ccsf_only,   train_set, test_set, "ccsf_only_full", epochs=args.epochs)
 
     print("\n--- Ablation: reduced pool (3 subj) ---")
-    out["whiten_only_reduced"] = run(whiten_only, reduced_set, test_set, "whiten_only_reduced")
-    out["ccsf_only_reduced"]   = run(ccsf_only,   reduced_set, test_set, "ccsf_only_reduced")
+    out["whiten_only_reduced"] = run(whiten_only, reduced_set, test_set, "whiten_only_reduced", epochs=args.epochs)
+    out["ccsf_only_reduced"]   = run(ccsf_only,   reduced_set, test_set, "ccsf_only_reduced", epochs=args.epochs)
 
     with open("results/ablation_part2.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)

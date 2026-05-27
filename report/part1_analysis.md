@@ -2,7 +2,7 @@
 
 *Half a page. Mechanistic.*
 
-## What we observe (real numbers from `results/metrics.json`)
+## What I'm seeing in the numbers (from `results/metrics.json`)
 
 Under cross-subject evaluation (train on subjects 1–8, test on 9–10), three seeds:
 
@@ -16,25 +16,26 @@ Under cross-subject evaluation (train on subjects 1–8, test on 9–10), three 
 trained from scratch — see `scripts/within_subject.py`. The wide spread
 is the small-data noise floor: 9 test trials per subject = 11 % resolution.)
 
-Three non-trivial facts:
+Three things stood out:
 
-1. The full 8-subject pool gives **no consistent benefit** over the 3-subject
-   pool. Adding subjects does not help generalisation to unseen subjects — the
-   marginal value of an extra training subject is roughly zero for EEGNet on
-   this paradigm.
-2. **Cross-subject training (8 subj, 360 trials) gets better mean accuracy
-   than within-subject training (1 subj, 36 trials).** 0.570 vs 0.522. The
-   subset is too small for EEGNet to fit within-subject, but it does
-   show that adding *out-of-distribution* trials helps when they come
-   for free — the bottleneck is data volume more than distribution match.
-3. The **silhouette score by subject is ~8× the silhouette by class**
-   (0.084 vs 0.010). The penultimate-layer features carry far more information
-   about *which subject* a trial belongs to than about *which class* it is.
-   This is visible directly in `results/figures/baseline_*.png`: the UMAP plot
-   colour-coded by subject is structured; the plot colour-coded by class is a
-   blob.
+1. The full 8-subject pool gives **no consistent benefit** over the
+   3-subject pool. Adding subjects doesn't help generalisation to
+   unseen subjects — the marginal value of an extra training subject
+   is roughly zero for EEGNet on this paradigm.
+2. **Cross-subject training (8 subj, 360 trials) gets better mean
+   accuracy than within-subject training (1 subj, 36 trials).**
+   0.570 vs 0.522. The subset is too small for EEGNet to fit
+   within-subject properly, but it does show that adding
+   out-of-distribution trials helps when they're free — the
+   bottleneck is data volume more than distribution match.
+3. **Silhouette score by subject is ~8× the silhouette by class**
+   (0.084 vs 0.010). The penultimate-layer features carry far more
+   information about which subject a trial belongs to than about
+   which class it is. You can see this directly in
+   `results/figures/baseline_*.png`: the UMAP plot coloured by
+   subject is structured; the same plot coloured by class is a blob.
 
-These three facts together are the diagnostic.
+Put those three together and that's the diagnostic.
 
 ## Why — the mechanism
 
@@ -56,12 +57,12 @@ EEGNet's failure is structural, not statistical:
    *is* the cross-subject failure mode — but the network has no way to know.
 
 3. **Subject identity is a high-SNR signal that BatchNorm preserves.** The
-   per-trial spatial covariance (impedance, reference-electrode contact, head
-   shape) encodes subject identity with very low entropy. The classifier
-   discovers it because it is *easier to learn than the class signal*. The
-   silhouette-by-subject score is the receipt: 0.084 ≫ 0.010 says the
-   network has effectively built a subject-identifier as its primary feature
-   axis.
+   per-trial spatial covariance (impedance, reference-electrode contact,
+   head shape) encodes subject identity with very low entropy. The
+   classifier finds it because it's *easier to learn than the class
+   signal*. The silhouette-by-subject score is the thing that
+   tells me this: 0.084 ≫ 0.010 says the network has basically built
+   a subject-identifier as its main feature axis.
 
 ## The structural argument
 
@@ -85,14 +86,14 @@ exploit covariance structure. On this subset, cross-subject (see
 | 8 subj | 0.489 | 0.489 |
 | 3 subj | 0.367 | 0.367 |
 
-CSP is at chance on the full pool and **below chance** on the reduced
-pool. Below-chance means CSP's filters are anti-aligned with the test
-subjects' covariance — exactly what the mechanism above predicts when
-subject-specific covariance learning meets test subjects with
-incompatible covariance. EEGNet (0.570 mean) sits above CSP because it
-has temporal-frequency capacity that CSP lacks — but the spatial-filter
-half of EEGNet is doing the same kind of subject-specific learning,
-just less catastrophically.
+CSP sits at chance on the full pool and **below chance** on the
+reduced pool. Below-chance is the giveaway: CSP's filters are
+anti-aligned with the test subjects' covariance, which is what you'd
+expect when subject-specific covariance learning runs into test
+subjects whose covariance doesn't match. EEGNet (0.570 mean) sits
+above CSP because it has temporal-frequency capacity that CSP
+doesn't, but the spatial-filter half of EEGNet is doing the same
+kind of subject-specific learning — just less catastrophically.
 
 The topomap figure (`results/figures/topomap_eegnet.png`) makes this
 visible: EEGNet's 16 learned depthwise filters look like fragmented

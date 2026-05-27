@@ -67,14 +67,14 @@ Two structural facts:
    very high signal-to-noise. The classifier finds it because it is
    *easier to learn than the actual class signal*.
 
-The high sil(subject) is the receipt: the model effectively built a
-person-identifier as its primary feature.
+The high sil(subject) is what tells me that — the model basically
+built a person-identifier as its main feature.
 
-This is **structurally unavoidable** without architectural change.
+There's no way around this without changing the architecture.
 
 ---
 
-## Slide 5 — Part 2 — TopoNet — two surgical changes
+## Slide 5 — Part 2 — TopoNet — two changes
 
 ### 5a. Per-trial Riemannian whitening
 $$ \tilde X = (X X^\top / T + \varepsilon I)^{-1/2} X $$
@@ -105,12 +105,11 @@ the cap is on.
 
 What's working and what isn't:
 
-- **Mechanism works**: subject clustering drops 6× on the full pool
-  and 2.3× on the reduced pool. The diagnostic from Part 1 is
-  decisively improved.
-- **Full-pool accuracy drops** — TopoNet underperforms the baseline.
-- **Reduced-pool accuracy improves AND becomes stable** — every seed
-  in [0.60, 0.62].
+- **Mechanism works.** Subject clustering drops 6× on the full pool
+  and 2.3× on the reduced pool — the Part 1 diagnostic moves a lot.
+- **Full-pool accuracy drops.** TopoNet sits below the baseline here.
+- **Reduced-pool accuracy improves and becomes stable.** Every seed
+  lands in [0.60, 0.62].
 
 ---
 
@@ -178,34 +177,46 @@ downweight them and behave like the baseline.
 
 ---
 
-## Slide 9 — Why this is grounded, specific, defensible
+## Slide 9 — Why this is grounded, specific, and (I think) not just bipolar
 
 **Grounded.** EEG has high temporal resolution but its spatial
-picture is coarse. Volume conduction makes neighbouring channels
-strongly correlated. Useful information lives in the *differences*
-between electrodes.
+picture is coarse. Volume conduction means neighbouring channels end
+up carrying mostly the same thing. The useful information often
+lives in the differences between electrodes.
 
 **Specific.** Ten exact contrasts, named electrodes, fixed
-subtraction. Reviewers can run `scripts/plot_contrasts.py` and
-verify the C3 − C4 trace shows a class-conditional sign flip.
+subtraction. `scripts/plot_contrasts.py` plots the C3 − C4 and
+(C3 + C4)/2 − Cz traces split by class — reviewers can verify the
+sign flip on C3 − C4 themselves.
 
-**Defensible in one sentence:**
+**Not just a bipolar montage.** Bipolar, surface Laplacian,
+common-average, CSP, ICA — they all replace the raw signal with a
+fixed transform before the network ever sees the data. Once that's
+done, the raw channels are gone.
 
-> *I am not adding information. C3 minus C4 is a linear combination
-> of channels EEGNet already sees. I am changing the inductive bias
-> so a known brain pattern becomes one of the first features the
-> network can find.*
+I do the opposite. The raw 64 channels stay. The 10 contrast
+channels sit next to them. Now EEGNet's depthwise spatial filter
+gets to decide, filter by filter, how much to lean on each side.
+Some filters can stay raw-like, others can concentrate on the
+contrasts and become lateralization detectors. None of that is
+hard-coded.
 
-**Three reasons it might help here specifically:**
+**One sentence I'd defend it with:**
 
-1. *Spatial structure.* Writes a known brain pattern directly into
-   the input.
-2. *Sample complexity.* With 8 subjects and ~360 trials, EEGNet
-   might not have enough data to discover lateralization on its own
-   before overfitting to per-subject noise.
-3. *Nuisance attenuation.* Anything affecting left and right sides
-   of the head about equally (arousal, contact, head size)
-   partly cancels in the subtraction.
+> *Classical EEG preprocessing decides the input representation
+> before the model sees the data. I leave that choice to a layer
+> that can be trained, and I check that it actually used it.*
+
+**Why it might help here specifically:**
+
+1. The contrast is in the input from the first batch, so the model
+   doesn't have to discover it before overfitting to per-subject
+   quirks.
+2. Anything that affects both sides of the head equally (arousal,
+   contact, head size) partly cancels in the subtraction — gentle
+   noise suppression for free.
+3. If contrasts don't help, the model can put small weights on them
+   and behave like the baseline. The fallback is graceful.
 
 ---
 
@@ -216,8 +227,8 @@ verify the C3 − C4 trace shows a class-conditional sign flip.
 Trial-averaged contrast traces, split by class:
 
 - **C3 − C4 has a sign flip between classes** (T1 mean negative,
-  T2 mean positive) — exactly the lateralization pattern the
-  contrast is built to capture.
+  T2 mean positive) — the lateralization pattern the contrast was
+  built to pick up.
 - Effect size is modest at the trial level (Cohen's d ≈ 0.14 on
   C3 − C4, ≈ 0.05 on (C3 + C4)/2 − Cz). The contrasts are
   class-informative but **not classifiers on their own** — they are
@@ -234,23 +245,74 @@ Trial-averaged contrast traces, split by class:
 | Baseline, 3 subj | 0.656 | 0.533 | -0.002 | 0.062 |
 | EEGNet + contrasts, 3 subj | 0.533 | 0.511 | 0.005 | **0.037** |
 
-**Full 8-subject pool — hypothesis validated.** Subject clustering
-drops 2.3× (0.084 → 0.037). Best accuracy up (0.644 → 0.667). Worst
-case up (0.511 → 0.556). Mechanism AND outcome both lined up with
-the prediction.
+**Full 8-subject pool — hypothesis held.** Subject clustering drops
+2.3× (0.084 → 0.037). Best accuracy up (0.644 → 0.667). Worst case
+up (0.511 → 0.556). Mechanism and outcome both lined up with what
+I'd predicted.
 
-**Reduced 3-subject pool — mechanism works, accuracy collapses.**
-Subject clustering still drops (0.062 → 0.037), so the contrasts are
-doing their job. But best accuracy collapses to 0.533. With 135
-trials, the extra 10 channels add more weights than the data can
-constrain — the prior cost more than it paid back.
+**Reduced 3-subject pool — mechanism still works, but accuracy
+collapses.** Subject clustering still drops (0.062 → 0.037), so the
+contrasts are doing their job at the representation level. But best
+accuracy collapses to 0.533. With 135 trials, the extra 10 channels
+add more weights than the data can constrain — the prior ended up
+costing more than it paid back.
 
-The trade between human prior and parameter cost flipped with data
-size. Predicted, confirmed, explained.
+So the trade between human prior and parameter cost flipped with
+data size. I'd expected this when I set the experiment up; the
+numbers ended up showing it.
+
+---
+
+## Slide 11b — Did the model actually use the contrasts?
+
+`scripts/part3_filter_analysis.py` → `results/figures/part3_filter_weights.png`.
+
+I ran the test. The numbers came in mixed.
+
+- Random baseline (every channel equally weighted): 10/74 ≈ 0.135.
+- Trained mean per-filter share on contrasts: 0.150 — only 1.11×
+  the baseline. Small shift in aggregate.
+- Per-filter spread: 0.031 to 0.263. Five filters at 0.20–0.26 (so
+  about 1.5–2× baseline). Five at 0.03–0.10, basically ignoring
+  the contrasts. The other six are near the baseline.
+
+So I'm walking the strong reading back. The aggregate number doesn't
+support "the model heavily leans on the prior overall" — I'd be
+overclaiming if I said that.
+
+What I'd still stand behind is the per-filter side. If the
+contrasts were redundant noise, every filter would land near 0.135.
+They don't. Some filters lean in, others lean away — and that
+heterogeneity is the actual evidence that the per-filter choice is
+happening, which is the architectural difference from a bipolar
+montage that forces every filter through the same fixed transform.
+
+So the contrasts end up being a useful sideline for a minority of
+filters, not a dominant input. That's where I'd land if pushed.
 
 ---
 
 ## Slide 12 — Defence Q&A I expect
+
+> **"Isn't this just a bipolar montage / surface Laplacian? Those
+> are decades old."**
+> Bipolar and Laplacian replace the raw signal with a fixed
+> transform before the network sees anything — once it's done, the
+> raw channels are gone. What I do is different: I leave the raw 64
+> in place and add 10 contrast channels next to them, and the
+> depthwise filter decides per filter how much to weight each side.
+> I ran the test on myself
+> (`scripts/part3_filter_analysis.py`) — the trained mean share on
+> contrasts came back at 0.150 against a 0.135 random baseline, so
+> only about 11 % above chance. I'm not going to claim the model
+> heavily leans on the prior overall — the aggregate number doesn't
+> back that. But the per-filter spread is wide (0.031 to 0.263):
+> some filters clearly concentrate on the contrasts, others ignore
+> them entirely. That's not what you'd see if the contrasts were
+> redundant noise. So the architectural difference from a bipolar
+> montage still holds — the filter gets a per-filter choice and
+> actually exercises it — even if the average filter doesn't
+> strongly prefer the contrasts.
 
 > **"But C3 − C4 is already a linear combination of channels EEGNet
 > already sees. Why should this help?"**
@@ -261,10 +323,10 @@ size. Predicted, confirmed, explained.
 > per-subject quirks first.
 
 > **"Why per-trial whitening, not subject-mean whitening?"**
-> Subject-mean needs calibration data on the test subject — we have
-> none for subjects 9, 10. Per-trial uses no test-subject statistics
-> at all. It pays a class-signal-removal price I now understand and
-> isolated via the ablation.
+> Subject-mean needs calibration data on the test subject, and I
+> have none for subjects 9 and 10. Per-trial uses no test-subject
+> statistics at all. It pays a class-signal-removal price, which I
+> now understand and isolated with the ablation.
 
 > **"Within-subject EEGNet mean is 0.522 — barely above chance.
 > How can you say EEGNet works?"**
@@ -329,12 +391,13 @@ reduced pool. CSP filters are explicitly person-specific covariance
 maximisers — under reduced-data cross-subject training they
 anti-align to test subjects.
 
-This is direct empirical support for Part 1's mechanism:
-covariance-based spatial filtering does not transfer across people.
+It's the same failure mechanism Part 1 spelled out for EEGNet,
+showing up even more starkly in a model that's covariance-based by
+construction.
 
-EEGNet (0.570 mean) uses temporal-frequency capacity that CSP lacks,
-but the *kind* of spatial features it learns are still
-person-coupled, just less catastrophically.
+EEGNet (0.570 mean) uses temporal-frequency capacity that CSP
+doesn't have, but the kind of spatial features it learns are still
+person-coupled — just less catastrophically.
 
 ---
 
@@ -353,9 +416,9 @@ person-coupled, just less catastrophically.
   inductive-bias hypothesis on the full pool (subject clustering ↓
   2.3×, best test ↑ 0.644 → 0.667, worst ↑ 0.511 → 0.556). On
   the small pool the mechanism still works but parameter cost wins.
-- **Each part had a finding, a failure mode, and an iteration that
-  understood the failure.** That loop is what I would bring to your
-  team.
+- **Each part has a finding, a failure mode, and a follow-up
+  experiment that explains the failure.** That's the working pattern
+  I'd want to bring into your team.
 
 Code (`main.py` plus the scripts referenced on each slide)
 reproduces every number on this deck.

@@ -7,6 +7,7 @@ Generate the two extra figures requested in review:
 
 Usage: python scripts/plot_extras.py
 """
+import argparse
 import os
 import sys
 
@@ -132,7 +133,11 @@ def plot_ccsf_topomaps(model: TopoNet, ch_names, pos, out_path):
 
 
 def main():
-    print("Loading data...")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--epochs", type=int, default=60)
+    args = parser.parse_args()
+
+    print(f"Loading data... (epochs={args.epochs})")
     train_set = load_data(TRAIN_SUBJECTS)
     test_set = load_data(TEST_SUBJECTS)
 
@@ -141,7 +146,7 @@ def main():
     base_acc, base_model = per_subject_accuracy(
         train_set, test_set,
         lambda c, t, pos: EEGNet(n_channels=c, n_times=t),
-        "EEGNet",
+        "EEGNet", epochs=args.epochs,
     )
     print(f"  {base_acc}")
 
@@ -149,7 +154,7 @@ def main():
     ccsf_acc, ccsf_model = per_subject_accuracy(
         train_set, test_set,
         lambda c, t, pos: TopoNet(pos=pos, n_channels=c, n_times=t, use_whitening=False),
-        "CCSF-only",
+        "CCSF-only", epochs=args.epochs,
     )
     print(f"  {ccsf_acc}")
 

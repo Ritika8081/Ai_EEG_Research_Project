@@ -11,6 +11,7 @@ scratch. Reported as mean ± std over subjects.
 
 Usage:  python scripts/within_subject.py
 """
+import argparse
 import os
 import sys
 import numpy as np
@@ -46,8 +47,12 @@ def main(seed: int = 1337, epochs: int = 60) -> None:
         print(f"  S{s:03d}  test_within={a:.3f}")
     arr = np.asarray(accs)
     print(f"\nWithin-subject EEGNet: mean={arr.mean():.3f}  std={arr.std():.3f}  best={arr.max():.3f}  worst={arr.min():.3f}")
-    print("Compare against cross-subject values in results/metrics.json — the gap *is* the failure.")
+    print("Compare against cross-subject values in results/metrics.json - the gap *is* the failure.")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--epochs", type=int, default=60)
+    parser.add_argument("--seed", type=int, default=1337)
+    args = parser.parse_args()
+    main(seed=args.seed, epochs=args.epochs)

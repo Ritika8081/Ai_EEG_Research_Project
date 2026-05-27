@@ -1,54 +1,77 @@
 # EEGNet Failure Analysis & Two Original Improvements
 
-Submission for the BrainwaveScience EEG assignment. Every number in
-this README is reproduced by `python main.py`.
+Submission for the BrainwaveScience EEG assignment.
 
-## What this submission does, in one paragraph
+**Reading note.** `python main.py` reproduces the six headline
+experiments (baseline / Part 2 / Part 3, each on the 8-subject and
+3-subject pools) and writes `results/metrics.json`,
+`results/log.txt` and the headline UMAP figures. The supplementary
+analyses (Part 2 ablation, CSP+LDA reference, within-subject
+reference, Part 3 contrast sanity check, Part 3 filter-weight
+check, topomaps, per-subject bar chart) each live as a standalone
+script under `scripts/` — they all run end-to-end with no flags.
+Full list under *Reproducing all numbers* below.
+
+## What this submission does
 
 EEGNet works in the lab. It breaks the moment you ask it to handle a
-new person it has never seen. This submission finds out exactly why,
-fixes the root cause two different ways, and reports honestly what
-each fix does — the wins, the failures, and the trade-offs.
+new person it has never seen. I tried to find out why that happens,
+fix the root cause two different ways, and write down honestly what
+each fix actually did — including where it didn't work.
 
-## At a glance — the five things to take away
+## Five things that came out of this
 
 1. **The cross-subject failure is structural, not "not enough data".**
    Adding 5 more training subjects gives **no improvement** (0.644 vs
-   0.656). EEGNet's spatial filter is blind to where electrodes are
-   on the head.
+   0.656). EEGNet's spatial filter has no idea where electrodes
+   actually sit on the head.
 
 2. **Part 2 (TopoNet) cuts person-clustering 6×** on the full pool
-   (0.084 → 0.014). On the small 3-subject pool, accuracy **goes up
-   AND stabilises** — best worst-case (0.567) of any model tested.
+   (0.084 → 0.014). On the small 3-subject pool, accuracy goes up
+   and stabilises — best worst-case (0.567) of any model I tried.
 
 3. **Part 3 (hemispheric contrast channels) beats baseline on every
    metric on the full pool.** Best accuracy 0.644 → **0.667**, worst
    0.511 → **0.556**, person-clustering 0.084 → **0.037** (2.3× drop).
    The mechanism still works on the small pool; the accuracy
-   trade-off is predicted and explained.
+   trade-off is one I'd predicted and the report explains why. I
+   also ran a check on my own claim with
+   `scripts/part3_filter_analysis.py`, which looks at how much
+   weight each trained spatial filter puts on the contrast channels
+   against the 10/74 ≈ 0.135 random baseline. The aggregate number
+   came back modest — trained mean 0.150, only about 11 % above
+   chance — so I can't honestly claim the model leans heavily on the
+   contrasts overall. What I do still stand behind is the per-filter
+   side: shares range from 0.031 to 0.263 across the 16 filters, so
+   some clearly concentrate on the contrasts (~1.5–2× baseline) and
+   others ignore them. That kind of spread is not what you'd see if
+   the contrasts were redundant noise. The contrasts end up being a
+   useful sideline for a minority of filters, not a dominant input.
+   Figure: `results/figures/part3_filter_weights.png`.
 
-4. **Each idea is defendable in one sentence.**
+4. **One sentence per idea, in case I get pressed for time.**
    *Part 2:* "I made the spatial filter location-aware so the same
    brain region produces the same filter response regardless of
    subject."
-   *Part 3:* "I am not adding new information. I am making a known
+   *Part 3:* "I'm not adding new information. I'm making a known
    brain pattern easier for the model to find."
 
-5. **Every result is reproduced by `python main.py`.** Seeds are
-   fixed. Best AND worst across seeds are always reported, never the
-   mean alone.
+5. **Every headline number is reproduced by `python main.py`.**
+   Seeds are fixed in `src/seed.py`. I report best and worst across
+   seeds for every experiment, never just the mean.
 
 ## The three parts
 
 **Part 1 — Finding the real reason it fails.**
-EEGNet's spatial filter has no idea where each electrode actually sits
-on the head. It treats them by index, like rows in a spreadsheet.
-That means it ends up learning the *personal cap pattern* of the
-training subjects instead of the actual task. New person, new cap,
-new shape — and the filter is looking for something that no longer
-exists. I confirm this with a clean diagnostic: adding more training
-subjects (3 → 8) does NOT improve cross-subject accuracy (0.656 vs
-0.644). The failure is structural, not "we need more data".
+EEGNet's spatial filter has no idea where each electrode actually
+sits on the head. It treats them by index, like rows in a
+spreadsheet. So it ends up learning the *personal cap pattern* of
+the training subjects instead of the actual task. New person, new
+cap, new shape, and the filter is looking for something that isn't
+there anymore. I check this with one diagnostic: adding more
+training subjects (3 → 8) does NOT improve cross-subject accuracy
+(0.656 vs 0.644). The failure is structural, not "we need more
+data".
 
 **Part 2 — TopoNet, which fixes the root cause.**
 Two changes that hit the same mechanism from two sides:
@@ -88,43 +111,35 @@ means train and test never share a person.
 cluster by person. Lower is better — it means the model is less
 person-dependent.
 
-## What the numbers actually say
+## Reading the numbers
 
-- **TopoNet drops subject clustering 6×** on the full pool (0.084 → 0.014). On the small 3-subject pool, accuracy goes UP (0.656 → 0.622), and the gap between best and worst case shrinks from 12.3 % to 2.2 % — much more stable. On the full pool accuracy drops, because some of the task signal also lived in the per-subject covariance that the whitening removed. Honest interesting failure, not a bug.
-- **Hemispheric contrasts win on the full pool.** Subject clustering drops 2.3×, best accuracy goes up (0.644 → 0.667), worst case goes up (0.511 → 0.556). On the small pool the mechanism still works (clustering drops) but accuracy collapses — the extra 10 channels add more weights than 135 trials can constrain. The trade between the prior and the parameter cost flips with data size. Predicted, confirmed, explained.
+- **TopoNet drops subject clustering 6×** on the full pool (0.084 → 0.014). On the small 3-subject pool, accuracy actually goes up (0.656 → 0.622), and the gap between best and worst seed shrinks from 12.3 % to 2.2 % — much more stable. On the full pool accuracy drops, because some of the task signal also lived in the per-subject covariance that the whitening removed. Not a bug — it's the trade-off I went into the experiment expecting, and the ablation script lets me isolate which half of TopoNet caused it.
+- **Hemispheric contrasts win on the full pool.** Subject clustering drops 2.3×, best accuracy goes up (0.644 → 0.667), worst case goes up (0.511 → 0.556). On the small pool the mechanism still works (clustering drops) but accuracy collapses — the extra 10 channels add more weights than 135 trials can constrain. So the trade between the prior and the parameter cost flips with data size. I'd expected this when setting up the experiment, and the numbers match.
 
-## Why each improvement is a strong, defensible choice
+## Why I picked these two improvements
 
-**Part 2 (TopoNet) — what it offers:**
-- *Removes person-specific noise mathematically.* No calibration data
-  from the test subject. Train once, run on anyone.
-- *Spatial filter knows physical position.* Same brain area → same
-  filter response, no matter what cap layout was used. Generalises to
-  any electrode montage, not just this one.
-- *Two independent fixes in one model.* The ablation script tells me
-  which fix does which job — they each cut subject clustering by 4×
-  on their own, and CCSF alone is the cleanest winner on the small
-  pool.
-- *Defends in one sentence.* "I made the spatial filter location-
-  aware so the same brain region produces the same filter response
-  regardless of subject."
+**Part 2 (TopoNet).** Two changes that hit the same root cause from
+different sides. The per-trial Riemannian whitening removes each
+person's electrical fingerprint without needing any calibration
+trials from the test subject — train once, run on anyone. The CCSF
+layer makes the spatial filter location-aware: same physical region
+on the head, same filter response, regardless of whose cap it is. I
+ran the ablation (`scripts/ablation_part2.py`) so I could tell which
+half does which job — each one alone cuts subject clustering by
+about 4×, and CCSF on its own is the cleanest winner on the small
+pool.
 
-**Part 3 (contrast channels) — what it offers:**
-- *Defends in one sentence.* "I am not adding information. I am
-  making a known brain pattern easier for the model to find."
-- *No extra learnable parameters in the feature.* The contrast is a
-  fixed subtraction. All the network's capacity stays where it
-  belongs.
-- *Modular.* The same channel augmentation wraps any channel-first
-  EEG model. One line of code.
-- *Self-falsifying.* If the contrasts do not help, the model just
-  puts small weights on them and behaves like the baseline. Nothing
-  about the architecture needs to roll back.
-- *Tied to a real EEG fact.* Scalp EEG is blurry in space because the
-  skull spreads each brain signal across multiple electrodes. The
-  useful information is usually in how electrodes *differ*, not in
-  any one channel on its own. The contrast channels write those
-  differences directly into the input.
+**Part 3 (contrast channels).** The contrasts are a fixed
+subtraction, so they don't add any learnable parameters of their
+own — the whole augmentation is one line, stack 10 extra channels on
+the input and let EEGNet see 74 channels instead of 64. If the
+contrasts turn out not to help, the model can just put small weights
+on them and behave like the baseline; nothing about the architecture
+needs to roll back. The reason I chose this particular prior: scalp
+EEG is blurry in space because the skull spreads each brain signal
+across multiple electrodes, so the useful information usually lives
+in how electrodes differ, not in any one channel on its own. The
+contrast channels write those differences directly into the input.
 
 ## Part 2 ablation (`results/ablation_part2.json`)
 
@@ -154,10 +169,10 @@ class on the training pool. `scripts/plot_contrasts.py` saves
   hand area (fists) vs midline foot area (feet). Trial-mean shows the
   expected ordering with a small effect (Cohen's d ≈ 0.05).
 - C3 − C4 surprisingly shows a sign flip between classes too
-  (Cohen's d ≈ 0.14). I did not expect this on a bilateral
+  (Cohen's d ≈ 0.14). I didn't expect this on a bilateral
   fists-vs-feet task — possible explanations are subject handedness,
   attention asymmetry, or systematic timing differences between the
-  two classes. Honest finding, flagged for defence.
+  two classes. Worth flagging for the defence.
 - Either way the contrasts are class-informative but not separable
   on their own. They are a useful representation for the network to
   lean on, not a classifier by themselves.
@@ -169,17 +184,19 @@ class on the training pool. `scripts/plot_contrasts.py` saves
 | CSP+LDA, 8 subj | 0.489 | 0.489 | 0.489 |
 | CSP+LDA, 3 subj | 0.367 | 0.367 | 0.367 |
 
-Classical Common Spatial Patterns is at chance on the full pool and
-**below chance** on the reduced pool. CSP filters are explicitly
+Classical Common Spatial Patterns sits at chance on the full pool
+and **below chance** on the reduced pool. CSP filters are explicitly
 person-specific covariance maximisers, so under reduced-data
-cross-subject training they actively anti-align to the test subjects.
-This is direct empirical support for Part 1's failure mechanism:
-covariance-based spatial filtering does not transfer across people.
+cross-subject training they actively anti-align to the test
+subjects. It's the same failure mechanism Part 1 spelled out for
+EEGNet, showing up even more starkly in a model that's
+covariance-based by construction.
 
-EEGNet (0.570 mean) sits clearly above CSP — it has temporal-
-frequency capacity that CSP lacks — but the *kind* of features it
-learns spatially are still person-coupled, just less catastrophically
-than CSP's by-construction person filters.
+EEGNet (0.570 mean) sits clearly above CSP because it has
+temporal-frequency capacity that CSP doesn't have. But the kind of
+features EEGNet learns spatially are still person-coupled — just
+less catastrophically than CSP's filters, which are explicitly
+per-person by design.
 
 ## Reproducing all numbers
 
@@ -190,6 +207,7 @@ python scripts/within_subject.py        # within-subject reference
 python scripts/ablation_part2.py        # Part 2 ablation
 python scripts/csp_baseline.py          # classical CSP+LDA reference
 python scripts/plot_contrasts.py        # Part 3 contrast sanity check
+python scripts/part3_filter_analysis.py # Part 3 — check whether the filters actually use the contrast channels
 python scripts/plot_extras.py           # topomaps + per-subject bar chart
 python scripts/make_table.py            # render results/metrics.json
 ```
@@ -242,9 +260,9 @@ results/
   cache/               Per-subject epoched arrays (auto-built).
 ```
 
-## Limitations I am flagging up front
+## Limitations
 
-I'm surfacing these so they aren't surprises in a defence.
+Putting these here so they don't surprise anyone in the defence.
 
 - **Tiny test set.** Only 2 test subjects = 90 cross-subject test
   trials. Accuracy resolution is ~1 %, and a 5 % swing is roughly 1
@@ -256,9 +274,9 @@ I'm surfacing these so they aren't surprises in a defence.
   would survive multiple-comparison correction across 6+ experiments.
 - **Within-subject reference is also low** (0.522 mean). Each subject
   has only ~45 trials, so an 80/20 split gives 9 test trials — 11 %
-  accuracy resolution. I treat the low ceiling as a data-volume
-  artifact, not a property of EEGNet itself. The Part 1 argument does
-  not depend on the within-subject ceiling.
+  accuracy resolution. I'm treating the low ceiling as a data-volume
+  thing, not something about EEGNet itself. The Part 1 argument
+  doesn't rely on the within-subject ceiling either way.
 - **Single-sphere head model.** Part 2's CCSF position prior assumes
   electrodes sit on a unit sphere — same assumption MNE's
   `interpolate_bads` makes. Conventional but not anatomically exact.

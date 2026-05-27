@@ -11,14 +11,15 @@ Cited in `report/part1_analysis.md`, `report/part2_design.md`,
   interfaces.* Journal of Neural Engineering, 15(5), 056013.
   arXiv:1611.08024.
 
-## Subject-transfer methods we deliberately did NOT transplant
+## Subject-transfer methods I looked at but didn't transplant
 
 - **Zanini, P., Congedo, M., Jutten, C., Said, S., & Berthoumieu, Y.
   (2018).** *Transfer learning: A Riemannian geometry framework with
   applications to brain–computer interfaces.* IEEE Transactions on
   Biomedical Engineering, 65(5), 1107–1116.
-  → Euclidean Alignment. Closest related method to our Part 2 whitening;
-  we use per-trial reference rather than subject-mean.
+  → Euclidean Alignment. Closest related method to my Part 2
+  whitening; I use a per-trial reference rather than a subject-mean
+  one.
 
 - **He, H., & Wu, D. (2020).** *Transfer learning for brain–computer
   interfaces: A Euclidean space data alignment approach.* IEEE
@@ -35,7 +36,7 @@ Cited in `report/part1_analysis.md`, `report/part2_design.md`,
   & Yosinski, J. (2018).** *An intriguing failing of convolutional
   neural networks and the CoordConv solution.* NeurIPS.
   → Inspiration for parameterising filters over spatial coordinates;
-  we adapt the idea to the *filter weights* rather than the input
+  I adapt the idea to the *filter weights* rather than the input
   feature map.
 
 - **Sitzmann, V., Martel, J. N. P., Bergman, A. W., Lindell, D. B., &
@@ -48,8 +49,9 @@ Cited in `report/part1_analysis.md`, `report/part2_design.md`,
 - **Perrin, F., Pernier, J., Bertrand, O., & Echallier, J. F. (1989).**
   *Spherical splines for scalp potential and current density mapping.*
   Electroencephalography and Clinical Neurophysiology, 72(2), 184–187.
-  → Standard tool for EEG channel interpolation. Our CMA uses a Gaussian
-  RBF on the sphere — the leading-order term of the spherical-spline
+  → Standard tool for EEG channel interpolation. An earlier version
+  of Part 3 (the CMA augmentation, now legacy) used a Gaussian RBF
+  on the sphere — the leading-order term of the spherical-spline
   expansion. Same single-sphere head-model assumption.
 
 ## Classical BCI baseline (for Part 1 calibration)
@@ -66,24 +68,25 @@ Cited in `report/part1_analysis.md`, `report/part2_design.md`,
 
 - **Lashgari, E., Liang, D., & Maoz, U. (2020).** *Data augmentation for
   deep-learning-based electroencephalography.* Journal of Neuroscience
-  Methods, 346, 108885. → Surveys existing EEG augmentations (channel
-  dropout, mixup, noise injection). Position-space augmentation is
-  notably absent from the survey — supports the Part 3 originality claim.
+  Methods, 346, 108885. → Surveys existing EEG augmentations
+  (channel dropout, mixup, noise injection). I noticed
+  position-space augmentation isn't in the survey, which is part of
+  why I think the Part 3 angle isn't well-covered.
 
 - **Park, D. S., Chan, W., Zhang, Y., Chiu, C.-C., Zoph, B., Cubuk, E. D.,
   & Le, Q. V. (2019).** *SpecAugment: A simple data augmentation method
   for automatic speech recognition.* Interspeech.
   → SpecAugment is the closest analog in spirit — masking on a known
-  axis (time/frequency in speech, position in our case).
+  axis (time/frequency in speech, position in mine).
 
 ## Diagnostic metric
 
 - **Rousseeuw, P. J. (1987).** *Silhouettes: A graphical aid to the
   interpretation and validation of cluster analysis.* Journal of
   Computational and Applied Mathematics, 20, 53–65.
-  → Silhouette score; we use it to compare "by class" vs "by subject"
-  organisation of penultimate-layer embeddings — the headline Part 1
-  diagnostic.
+  → Silhouette score; I use it to compare "by class" vs "by subject"
+  organisation of the penultimate-layer embeddings — the headline
+  Part 1 diagnostic.
 
 ## Cap-placement variance (motivation for Part 3)
 

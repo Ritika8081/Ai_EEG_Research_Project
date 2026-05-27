@@ -186,8 +186,9 @@ def main() -> None:
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
-    # Human-readable summary.
-    lines = ["RESULTS — best/worst over seeds (test accuracy, cross-subject)"]
+    # Human-readable summary. ASCII-only header so Windows console codepages
+    # (cp1252, cp437) don't mangle the em-dash when stdout is redirected.
+    lines = ["RESULTS - best/worst over seeds (test accuracy, cross-subject)"]
     for k, v in metrics.items():
         lines.append(
             f"  {k:32s}  best={v['best']:.3f}  worst={v['worst']:.3f}  "

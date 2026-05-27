@@ -37,10 +37,10 @@ am not adding new information — C3 minus C4 can already be computed
 from the raw channels — but I am giving the network a shortcut to a
 pattern it would otherwise have to figure out from scratch.
 
-## The actual hypothesis
+## What I'm actually claiming
 
-The strongest way to state it: I am not changing what information the
-model has. I am changing how easy it is for the model to find what
+The cleanest way I can put it: I'm not changing what information the
+model has. I'm changing how easy it is for the model to find what
 matters.
 
 EEGNet could in principle learn C3 minus C4 on its own from raw
@@ -65,28 +65,54 @@ partly cancels when I subtract one from the other. So the contrast
 channels also work as a soft filter on the very per-subject noise
 Part 1 said EEGNet was picking up.
 
-## Why this is a clean approach
+## A few things I like about this approach
 
-- **Easy to defend in one sentence.** I am not adding information. I
-  am making a known brain pattern easier for the model to see.
-- **No extra learnable parameters in the feature itself.** The
-  contrast is a fixed subtraction. The model's full capacity stays in
-  EEGNet.
-- **Modular.** The same channel augmentation can wrap any
-  channel-first EEG model.
-- **Self-falsifying.** If the contrasts do not help, the model puts
-  small weights on them and behaves like the baseline. Nothing about
-  the network needs to change to roll back.
+It's easy to defend in one sentence — I'm not adding information,
+I'm making a known brain pattern easier for the model to see. The
+contrasts are a fixed subtraction so they don't add any learnable
+parameters, which means the model's full capacity stays in EEGNet.
+The augmentation is one line and could wrap any channel-first EEG
+model, not just EEGNet. And if the contrasts turn out to be useless
+on a different dataset, the model can put small weights on them and
+behave like the baseline — nothing about the architecture needs to
+roll back.
 
-## Why I think it is underexplored
+## Why this isn't just bipolar referencing
 
-Both CSP and EEGNet learn spatial filters from the data. Fixed
-pairwise contrasts go the other way — you hand them to the model
-instead. The classical surface Laplacian does something similar but
-is used as a preprocessing step (it replaces the raw signal), not as
-extra channels sitting next to the raw ones. I have not seen a paper
-that adds explicit symmetric-pair contrasts as a low-cost prior on
-top of EEGNet's existing channels.
+The obvious thing someone will throw at this is "you've reinvented a
+bipolar montage, that's been around for decades". Fair question.
+Here's how I'd answer it.
+
+Bipolar, surface Laplacian, common-average, CSP, ICA — every one of
+them replaces the raw signal with a transform that gets baked in
+before the network sees anything. Once that choice is made, the raw
+channels are gone. If the chosen transform doesn't suit a particular
+filter the network would like to learn, there's no way back to the
+raw signal.
+
+What I'm doing is different in one specific way: I don't replace, I
+add. The raw 64 channels stay where they are. The 10 contrast
+channels sit next to them. The same brain signal shows up in two
+forms that are algebraically related. Then EEGNet's depthwise
+spatial filter decides, filter by filter, how much weight to put on
+each side. Some filters can end up mostly raw, others can end up
+mostly contrast. None of that is hard-coded.
+
+I'm not claiming the contrasts themselves are new — they aren't. I'm
+claiming that putting them alongside the raw channels and letting
+the spatial filter choose how to mix the two is something I haven't
+found in EEGNet motor-imagery work. If someone shows me a paper that
+does exactly this, I'll happily retract.
+
+I also wanted a way to check my own claim instead of just stating
+it. If the contrasts were redundant copies, the trained filters
+would weight them around 10/74 ≈ 13.5 % on average (that's the
+share you'd see if all channels mattered equally). If the filters
+actually pick up the prior, the share on the contrast side should
+sit above that. `scripts/part3_filter_analysis.py` trains one Part 3
+model, computes the per-filter share, and saves the figure with the
+random baseline drawn on it so a reviewer can see immediately
+whether my framing survives.
 
 ## Why it might not work
 
@@ -115,7 +141,7 @@ contrasts per trial and stick them on as extra channels. Window,
 filter, per-trial z-score and training schedule are identical to the
 baseline. The only thing that changes is the channel count (64 → 74).
 
-## Sanity check on the engineered feature
+## Sanity-checking the contrasts before the model sees them
 
 Before letting the network use the contrasts, I plotted the two main
 ones class by class on the training pool. `scripts/plot_contrasts.py`
@@ -174,6 +200,49 @@ That is the trade I described above, playing out in reverse on the
 two pools. When there is enough data to back the prior, the prior
 helps. When there is not, the extra capacity hurts before the prior
 pays off.
+
+## Did the model actually use the contrast channels?
+
+`scripts/part3_filter_analysis.py` trains Part 3 with seed 1337 and
+reports, for each of the 16 depthwise spatial filters, how much of
+its weight variance ended up on the 10 contrast channels vs the 64
+raw channels. Random baseline is 10/74 ≈ 13.5 % — what you'd get if
+every channel mattered equally. The script saves
+`results/part3_filter_analysis.json` and the figure
+`results/figures/part3_filter_weights.png`.
+
+I wrote this as the test I'd want a reviewer to run on me. The
+numbers came in honestly mixed, so let me walk through them.
+
+- Trained mean per-filter share is 0.150 against a random baseline
+  of 0.135. So on average the filters put only about 11 % more
+  weight on the contrasts than they would by chance. That's a small
+  shift, not a big one. If I'd been claiming the model heavily
+  leans on the contrasts, these numbers wouldn't back me up.
+- But the per-filter spread is wide. Shares range from 0.031 (filter
+  9, basically ignoring the contrasts) up to 0.263 (filter 3,
+  roughly twice the baseline weight on them). Five filters
+  concentrate clearly above baseline, five sit clearly below, and
+  the rest are near it.
+- If the contrasts were just redundant noise, every filter would
+  land near 0.135. The fact that they don't — that some filters
+  lean in and others lean away — is the actual evidence that the
+  per-filter choice is happening.
+
+Reading those numbers honestly: the contrasts aren't acting as
+redundant noise (the spread is too wide for that), but they're not
+dominating the spatial filter either. They're being used by a
+minority of filters as a useful auxiliary representation. That's
+still different from a bipolar montage, where every filter would be
+locked into the same fixed transform — but it's a more modest
+difference than I was hoping for going in.
+
+So if someone presses me on it: I'd drop the "model heavily leans
+on the prior" reading, because the aggregate number doesn't
+support it. The per-filter-choice piece is the bit I'd still stand
+behind — the heterogeneity in the bars is empirical evidence that
+the choice is being made, even if the average filter doesn't
+strongly prefer the contrasts.
 
 ## What I learned
 
